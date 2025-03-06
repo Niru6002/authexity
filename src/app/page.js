@@ -62,6 +62,7 @@ export default function Home() {
     
     const stats = result.data.attributes.stats;
     const total = Object.values(stats).reduce((a, b) => a + b, 0);
+    // A URL is safe if it has no malicious or suspicious flags
     const isSafe = stats.malicious === 0 && stats.suspicious === 0;
     
     return {
