@@ -75,23 +75,25 @@ export default function Home() {
     };
   };
 
-  // Generate a safety score between 0-100
+  // Generate a safety score between 0-100 where 100 is most dangerous
   const getSafetyScore = (metrics) => {
     if (metrics.total === 0) return 0;
-    const { harmless, total, malicious, suspicious } = metrics;
-    
+    const { harmless, total, malicious, suspicious, undetected } = metrics;
+
     // Heavily penalize malicious and suspicious flags
     const maliciousWeight = 5;
     const suspiciousWeight = 2;
+    const undetectedWeight = 0.5; // Slightly penalize undetected
+
+    const weightedNegative = (malicious * maliciousWeight) + (suspicious * suspiciousWeight) + (undetected * undetectedWeight);
+    // Higher score means more dangerous (reverse of previous logic)
+    const dangerScore = Math.min(100, Math.max(0, weightedNegative - ((harmless / total) * 20)));
     
-    const weightedNegative = (malicious * maliciousWeight) + (suspicious * suspiciousWeight);
-    const safeScore = Math.max(0, Math.min(100, ((harmless / total) * 100) - weightedNegative));
-    
-    return Math.round(safeScore);
+    return Math.round(dangerScore);
   };
 
   const metrics = securityResult ? getSafetyMetrics(securityResult) : null;
-  const safetyScore = metrics ? getSafetyScore(metrics) : null;
+  const dangerScore = metrics ? getSafetyScore(metrics) : null;
 
   return (
     <div className="flex flex-col items-center min-h-screen p-8 bg-gray-950 text-gray-100">
@@ -164,49 +166,56 @@ export default function Home() {
               
               {/* Safety Score - Improved Layout */}
               <div className="p-6 flex flex-col items-center md:flex-row md:items-center gap-8">
-                {/* Score Circle */}
+                {/* Danger Score Circle - Reversed (100 = danger) */}
                 <div className="relative w-44 h-44 flex-shrink-0">
                   <svg className="w-full h-full" viewBox="0 0 36 36">
+                    {/* Background circle */}
                     <path
                       className="stroke-current text-gray-700"
                       fill="none"
                       strokeWidth="4"
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
+                    {/* Danger level indicator */}
                     <path
                       className={`stroke-current ${
-                        safetyScore > 70 ? 'text-green-500' : 
-                        safetyScore > 40 ? 'text-yellow-500' : 
+                        dangerScore < 30 ? 'text-green-500' : 
+                        dangerScore < 60 ? 'text-yellow-500' : 
                         'text-red-500'
                       }`}
                       fill="none"
                       strokeWidth="4"
-                      strokeDasharray={`${safetyScore}, 100`}
+                      strokeDasharray={`${dangerScore}, 100`}
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
-                    <text 
+                    {/* Central score display */}
+                    {/* <text 
                       x="18" 
-                      y="21" 
-                      style={{ fontSize: '1.0rem', fontWeight: 'bold' }}
+                      y="17" 
+                      style={{ fontSize: '0.0rem' }}
                       textAnchor="middle"
                       fill="currentColor"
+                      className="font-medium"
                     >
-                      {safetyScore}
-                    </text>
+                      RISK LEVEL
+                    </text> */}
                     <text 
                       x="18" 
-                      y="27" 
-                      style={{ fontSize: '0.15rem' }}
+                      y="20" 
+                      style={{ fontSize: '0.5rem', fontWeight: 'bold' }}
                       textAnchor="middle"
-                      fill="currentColor"
+                      fill={dangerScore < 30 ? '#10B981' : dangerScore < 60 ? '#FBBF24' : '#EF4444'}
                     >
-                      SAFETY SCORE
+                      {dangerScore < 30 ? 'LOW' : dangerScore < 60 ? 'MEDIUM' : 'HIGH'}
                     </text>
                   </svg>
+                  {/* <div className="absolute bottom-0 w-full text-center text-xs text-gray-400">
+                    Score: {100 - dangerScore}/100
+                  </div> */}
                 </div>
 
                 <div className="flex-1 w-full">
-                  {/* Security Assessment Box */}
+                  {/* Security Assessment Box - Still based on "safe" metric */}
                   <div className={`p-4 rounded-md mb-5 ${
                     metrics.safe ? 'bg-green-900/30 border border-green-800/50' : 'bg-red-900/30 border border-red-800/50'
                   }`}>
