@@ -5,12 +5,16 @@ import {
   ArrowUpIcon,
 } from "@heroicons/react/24/solid";
 import axios from "axios";
+import { extractLinks, scrapeWebsiteContent } from "../utils/linkscrapper";
+import { analyzeScamText } from "../utils/gemini";
 
 export default function Home() {
   const [attachments, setAttachments] = useState([]);
   const [selectedFeatures, setSelectedFeatures] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [showFeatures, setShowFeatures] = useState(true);
+  const [inputText, setInputText] = useState('');
+
 
   const features = [
     { id: "deepfake", name: "Deepfake Detection", description: "Detect AI-generated deepfake content.", icon: "🎭" },
@@ -22,6 +26,45 @@ export default function Home() {
     { id: "text-moderation", name: "Text Moderation", description: "Detect harmful or offensive text.", icon: "📜" },
     { id: "face-analysis", name: "Face Analysis", description: "Analyze faces for various attributes.", icon: "👤" },
   ];
+
+  const processTextAnalysis = async () => {
+    if (!inputText.trim()) return;
+  
+    // Extract links from the text
+    const links = extractLinks(inputText);
+    let linkContent = "";
+  
+    // Scrape content from each link
+    for (let link of links) {
+      const content = await scrapeWebsiteContent(link);
+      linkContent += `\n[${link}]: ${content}`;
+    }
+  
+    // Analyze the text and link content with Gemini
+    const analysisResponse = await analyzeScamText(inputText, linkContent);
+  
+    try {
+      // Extract text content safely
+      let rawText = analysisResponse.candidates[0]?.content?.parts[0]?.text || "{}";
+  
+      // Remove possible Markdown backticks and language specifier
+      rawText = rawText.trim().replace(/```json/g, "").replace(/```/g, "").trim();
+  
+      // Parse cleaned JSON
+      const analysis = JSON.parse(rawText);
+  
+      // Add response to chat
+      setChatMessages((prev) => [
+        ...prev,
+        { type: "scam-analysis", content: inputText, analysis },
+      ]);
+    } catch (error) {
+      console.error("Error parsing Gemini response:", error, "Raw response:", analysisResponse);
+    }
+  
+    setInputText(""); // Clear input
+  };
+  
 
   const handleFileUpload = (event) => {
     const files = Array.from(event.target.files);
@@ -39,8 +82,14 @@ export default function Home() {
   };
 
   const processImages = async () => {
-    if (attachments.length === 0 || selectedFeatures.length === 0) return;
+    if (attachments.length === 0 && !selectedFeatures.includes("scam")) return;
     setShowFeatures(false);
+
+    // If Scam Detection is selected, run processTextAnalysis
+    if (selectedFeatures.includes("scam")) {
+      await processTextAnalysis();
+      return;
+    }
 
     const newMessages = [];
 
@@ -70,23 +119,28 @@ export default function Home() {
     setSelectedFeatures([]);
   };
 
-  const [inputText, setInputText] = useState('');
 
-  const handleTextSubmit = (e) => {
+  const handleTextSubmit = async (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-    
-    // Process the text input here
+  
+    // If Scam Detection is selected, analyze the text instead of just displaying it
+    if (selectedFeatures.includes("scam")) {
+      await processTextAnalysis();
+      return;
+    }
+  
+    // Otherwise, just add the text to the chat
     const newMessage = {
       text: inputText,
-      type: 'text',
-      timestamp: new Date().toISOString()
+      type: "text",
+      timestamp: new Date().toISOString(),
     };
-    
+  
     setChatMessages([...chatMessages, newMessage]);
-    setInputText('');
+    setInputText("");
   };
-
+  
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6">
       <div className="text-center mb-6">
