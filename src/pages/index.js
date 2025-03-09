@@ -338,6 +338,20 @@ export default function Home() {
                 </>
               )}
 
+              {msg.type === "factcheck" && (
+                <div className="flex-grow">
+                  <div className="text-[#e6f4eb] mb-2">
+                    <span className="text-[#9987e4] font-semibold">Fact Check:</span> {msg.text}
+                  </div>
+                  <FactChecker 
+                    readOnly={true} 
+                    showResults={true}
+                    initialStatement={msg.text}
+                    results={msg.factCheck}
+                    onSubmit={() => {}}
+                  />
+                </div>
+              )}
 
               {msg.image && (
                 <>
