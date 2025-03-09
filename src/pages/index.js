@@ -348,6 +348,7 @@ export default function Home() {
                     showResults={true}
                     initialStatement={msg.text}
                     results={msg.factCheck}
+                    onSubmit={() => {}}
                   />
                 </div>
               )}
