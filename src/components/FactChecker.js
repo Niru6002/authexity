@@ -125,18 +125,113 @@ const FactChecker = ({ onSubmit, isLoading, results }) => {
                 <div className="space-y-3">
                   {results.citations.map((citation, index) => (
                     <div key={index} className="p-3 bg-gray-700 rounded-lg">
-                      <a 
-                        href={citation.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-400 hover:text-blue-300 font-medium block mb-1"
-                      >
-                        {citation.title || citation.url}
-                      </a>
+                      <div className="flex justify-between items-center">
+                        <a 
+                          href={citation.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:text-blue-300 font-medium block mb-1"
+                        >
+                          {citation.title || citation.url}
+                        </a>
+                        {citation.confidence !== undefined && (
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            citation.confidence > 0.7 ? 'bg-green-600' : 
+                            citation.confidence > 0.4 ? 'bg-yellow-600' : 'bg-red-600'
+                          }`}>
+                            {(citation.confidence * 100).toFixed(0)}% confidence
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-300 line-clamp-2">{citation.snippet}</p>
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Grounding Metadata */}
+            {results.groundingMetadata && (
+              <div className="mb-6">
+                <h4 className="text-sm uppercase text-gray-400 mb-2">Grounding Information</h4>
+                
+                {/* Overall Confidence */}
+                {results.groundingMetadata.confidence !== undefined && (
+                  <div className="mb-4 p-3 bg-gray-700 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-gray-300">Overall Grounding Confidence</span>
+                      <span className="font-bold">{(results.groundingMetadata.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-800 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          results.groundingMetadata.confidence > 0.7 ? 'bg-green-500' : 
+                          results.groundingMetadata.confidence > 0.4 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${results.groundingMetadata.confidence * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Search Queries */}
+                {results.groundingMetadata.webSearchQueries && results.groundingMetadata.webSearchQueries.length > 0 && (
+                  <div className="mb-4 p-3 bg-gray-700 rounded-lg">
+                    <h5 className="text-xs uppercase text-gray-400 mb-2">Search Queries Used</h5>
+                    <div className="flex flex-wrap gap-2">
+                      {results.groundingMetadata.webSearchQueries.map((query, index) => (
+                        <span key={index} className="px-2 py-1 bg-gray-600 rounded-full text-xs">
+                          {query}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Grounding Chunks with Images */}
+                {results.groundingMetadata.groundingChunks && results.groundingMetadata.groundingChunks.length > 0 && (
+                  <div className="space-y-3">
+                    {results.groundingMetadata.groundingChunks.map((chunk, index) => {
+                      // Check if chunk has an image
+                      const hasImage = chunk.web?.imageUrl || chunk.web?.thumbnailUrl;
+                      
+                      return (
+                        <div key={index} className="p-3 bg-gray-700 rounded-lg">
+                          {hasImage && (
+                            <div className="mb-2">
+                              <img 
+                                src={chunk.web?.imageUrl || chunk.web?.thumbnailUrl} 
+                                alt={chunk.web?.title || "Source image"} 
+                                className="w-full max-h-48 object-contain rounded-md"
+                              />
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center">
+                            <a 
+                              href={chunk.web?.uri} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 font-medium block mb-1"
+                            >
+                              {chunk.web?.title || chunk.web?.uri || "Source"}
+                            </a>
+                            {chunk.confidence !== undefined && (
+                              <span className={`px-2 py-1 text-xs rounded-full ${
+                                chunk.confidence > 0.7 ? 'bg-green-600' : 
+                                chunk.confidence > 0.4 ? 'bg-yellow-600' : 'bg-red-600'
+                              }`}>
+                                {(chunk.confidence * 100).toFixed(0)}% confidence
+                              </span>
+                            )}
+                          </div>
+                          {chunk.web?.snippet && (
+                            <p className="text-sm text-gray-300">{chunk.web.snippet}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
