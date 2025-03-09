@@ -268,15 +268,14 @@ export default function Home() {
     }
 
     if (selectedFeatures.includes("text-moderation")) {
-      const moderationResult = await moderateText(inputText);
-      
+      const moderationResults = await moderateText(inputText);
       const newMessage = {
         text: inputText,
-        type: "moderation",
+        type: "text-moderation",
         timestamp: new Date().toISOString(),
-        moderation: moderationResult
+        moderation: moderationResults,
       };
-      
+
       setChatMessages([...chatMessages, newMessage]);
       setInputText("");
       return;
@@ -492,6 +491,95 @@ export default function Home() {
                     </ul>
                   </div>
                 )}
+              </div>
+            ) : msg.type === "text-moderation" ? (
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold mb-2">
+                  Text Moderation Result
+                </h3>
+                <p className="text-lg mb-3">{msg.text}</p>
+
+                <div className="mt-3 p-4 bg-gray-700 rounded-lg">
+                  <div className="mb-3"></div>
+                  <span className="font-semibold text-blue-400">
+                    Overall Toxicity:
+                  </span>{" "}
+                  <span
+                    className={`px-2 py-1 text-sm rounded-md ${
+                      msg.moderation.moderationScore < 0.3
+                        ? "bg-green-500"
+                        : msg.moderation.moderationScore < 0.7
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
+                  >
+                    {(msg.moderation.moderationScore * 100).toFixed(1)}%
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(msg.moderation.categories || {}).map(
+                    ([category, score]) => (
+                      <div key={category} className="mb-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-gray-300 capitalize">
+                            {category}
+                          </span>
+                          <span className="font-bold">
+                            {(score * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              score > 0.7
+                                ? "bg-red-500"
+                                : score > 0.3
+                                ? "bg-yellow-500"
+                                : "bg-green-500"
+                            }`}
+                            style={{ width: `${score * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                {msg.moderation.flaggedWords &&
+                  msg.moderation.flaggedWords.length > 0 && (
+                    <div className="mt-3">
+                      <span className="font-semibold text-blue-400">
+                        Flagged Words:
+                      </span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {msg.moderation.flaggedWords.map((word, i) => (
+                          <span
+                            key={i}
+                            className="px-2 py-1 bg-red-500/30 rounded text-sm"
+                          >
+                            {word}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                {msg.moderation.warnings &&
+                  msg.moderation.warnings.length > 0 && (
+                    <div className="mt-3">
+                      <span className="font-semibold text-blue-400">
+                        Warnings:
+                      </span>
+                      <ul className="list-disc list-inside mt-1">
+                        {msg.moderation.warnings.map((warning, i) => (
+                          <li key={i} className="text-yellow-300">
+                            {warning}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
               </div>
             ) : (
               <div className="flex-1">

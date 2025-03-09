@@ -6,21 +6,19 @@ const API_SECRET = process.env.NEXT_PUBLIC_API_SECRET;
 
 const moderateText = async (text, lang = 'en') => {
     try {
-        const data = new FormData();
-        data.append('text', text);
-        data.append('lang', lang);
-        data.append('models', 'general,self-harm');
-        data.append('mode', 'ml');
-        data.append('api_user', API_USER);
-        data.append('api_secret', API_SECRET);
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('lang', lang);
+        formData.append('models', 'general,self-harm');
+        formData.append('mode', 'ml');
+        formData.append('api_user', API_USER);
+        formData.append('api_secret', API_SECRET);
 
         const response = await axios.post(
             'https://api.sightengine.com/1.0/text/check.json',
-            data,
+            formData,
             {
-                headers: {
-                    ...data.getHeaders(), // Fix: Ensure headers are properly set
-                },
+                headers: { 'Content-Type': 'multipart/form-data' },
             }
         );
 
@@ -37,6 +35,7 @@ const moderateText = async (text, lang = 'en') => {
 };
 
 const formatModerationResponse = (data, text) => {
+    // Rest of the function remains unchanged
     if (data.status !== 'success') {
         return {
             moderationScore: 0,
