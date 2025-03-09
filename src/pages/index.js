@@ -364,8 +364,8 @@ export default function Home() {
                     <div className="w-full bg-gray-700 rounded-full h-3">
                       <div 
                         className={`h-3 rounded-full ${
-                          msg.factCheck.factAccuracy > 80 ? 'bg-green-500' : 
-                          msg.factCheck.factAccuracy > 50 ? 'bg-yellow-500' : 'bg-red-500'
+                          msg.factCheck.factAccuracy > 80 ? 'bg-[#9987e4]' : 
+                          msg.factCheck.factAccuracy > 50 ? 'bg-[#b27358]' : 'bg-red-500'
                         }`}
                         style={{ width: `${msg.factCheck.factAccuracy}%` }}
                       ></div>
@@ -374,94 +374,88 @@ export default function Home() {
                 )}
                 
                 {msg.factCheck?.verifiedStatement && (
-                  <div className="mb-3 p-3 bg-gray-700 rounded-lg">
+                  <div className="mb-3 p-3 bg-[#0d1311] border border-[#6e335f]/20 rounded-lg">
                     <p className="text-white">{msg.factCheck.verifiedStatement}</p>
                   </div>
                 )}
                 
-                {msg.factCheck?.visualContent && (
-                  <div 
-                    className="mt-3"
-                    dangerouslySetInnerHTML={{ __html: msg.factCheck.visualContent }}
-                  />
-                )}
-                
-                {/* Citations with confidence scores */}
-                {msg.factCheck?.citations && msg.factCheck.citations.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm uppercase text-gray-400 mb-2">Sources</h4>
-                    <div className="space-y-2">
-                      {msg.factCheck.citations.map((citation, idx) => (
-                        <div key={idx} className="p-2 bg-gray-700 rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <a 
-                              href={citation.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:text-blue-300 text-sm"
-                            >
-                              {citation.title || citation.url}
-                            </a>
-                            {citation.confidence !== undefined && (
-                              <span className={`px-2 py-0.5 text-xs rounded-full ${
-                                citation.confidence > 0.7 ? 'bg-green-600' : 
-                                citation.confidence > 0.4 ? 'bg-yellow-600' : 'bg-red-600'
-                              }`}>
-                                {(citation.confidence * 100).toFixed(0)}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                {/* Two-column layout for Visual Content and Citations */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  {/* Visual Representation */}
+                  {msg.factCheck?.visualContent && (
+                    <div className="sm:order-2">
+                      <div 
+                        className="p-3 bg-[#0d1311] border border-[#6e335f]/20 rounded-lg"
+                        dangerouslySetInnerHTML={{ __html: msg.factCheck.visualContent }}
+                      />
                     </div>
-                  </div>
-                )}
-                
-                {/* Grounding Metadata with Images */}
-                {msg.factCheck?.groundingMetadata?.groundingChunks && 
-                 msg.factCheck.groundingMetadata.groundingChunks.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm uppercase text-gray-400 mb-2">Grounding Sources</h4>
-                    <div className="space-y-2">
-                      {msg.factCheck.groundingMetadata.groundingChunks.map((chunk, idx) => {
-                        // Check if chunk has an image
-                        const hasImage = chunk.web?.imageUrl || chunk.web?.thumbnailUrl;
-                        
-                        return (
-                          <div key={idx} className="p-2 bg-gray-700 rounded-lg">
-                            {hasImage && (
-                              <div className="mb-2">
-                                <img 
-                                  src={chunk.web?.imageUrl || chunk.web?.thumbnailUrl} 
-                                  alt={chunk.web?.title || "Source image"} 
-                                  className="w-full max-h-32 object-contain rounded-md"
-                                />
-                              </div>
-                            )}
-                            <div className="flex justify-between items-center">
+                  )}
+                  
+                  {/* Citations with confidence scores */}
+                  {msg.factCheck?.citations && msg.factCheck.citations.length > 0 && (
+                    <div className="sm:order-1">
+                      <h4 className="text-sm uppercase text-gray-400 mb-2">News Sources</h4>
+                      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                        {msg.factCheck.citations.map((citation, idx) => {
+                          // Get favicon URL from domain
+                          const faviconUrl = citation.domain ? `https://www.google.com/s2/favicons?domain=${citation.domain}&sz=32` : "";
+                          
+                          return (
+                            <div key={idx} className="bg-[#0d1311] rounded-lg overflow-hidden border border-[#6e335f]/20 hover:border-[#9987e4] transition-all duration-300">
                               <a 
-                                href={chunk.web?.uri} 
+                                href={citation.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-blue-400 hover:text-blue-300 text-sm"
+                                className="block"
                               >
-                                {chunk.web?.title || chunk.web?.uri || "Source"}
+                                {citation.imageUrl && (
+                                  <div className="relative w-full h-28 overflow-hidden">
+                                    <img 
+                                      src={citation.imageUrl} 
+                                      alt={citation.title || "Source image"} 
+                                      className="w-full h-full object-cover"
+                                    />
+                                    {citation.confidence !== undefined && (
+                                      <div className="absolute top-2 right-2">
+                                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                          citation.confidence > 0.7 ? 'bg-[#9987e4]' : 
+                                          citation.confidence > 0.4 ? 'bg-[#b27358]' : 'bg-red-600'
+                                        }`}>
+                                          {(citation.confidence * 100).toFixed(0)}%
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                <div className="p-3">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    {faviconUrl && (
+                                      <img 
+                                        src={faviconUrl} 
+                                        alt="Site icon" 
+                                        className="w-3 h-3 rounded-sm flex-shrink-0"
+                                      />
+                                    )}
+                                    <span className="text-xs text-gray-400">{citation.domain || "Unknown source"}</span>
+                                  </div>
+                                  
+                                  <h3 className="text-sm font-medium text-white mb-1 line-clamp-2 hover:text-[#9987e4]">
+                                    {citation.title || "Source Article"}
+                                  </h3>
+                                  
+                                  {!citation.imageUrl && citation.snippet && (
+                                    <p className="text-xs text-gray-300 line-clamp-2">{citation.snippet}</p>
+                                  )}
+                                </div>
                               </a>
-                              {chunk.confidence !== undefined && (
-                                <span className={`px-2 py-0.5 text-xs rounded-full ${
-                                  chunk.confidence > 0.7 ? 'bg-green-600' : 
-                                  chunk.confidence > 0.4 ? 'bg-yellow-600' : 'bg-red-600'
-                                }`}>
-                                  {(chunk.confidence * 100).toFixed(0)}%
-                                </span>
-                              )}
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ) : (
               <div className="flex-1">
@@ -596,6 +590,27 @@ export default function Home() {
           </div>
         ))}
       </div>
+
+      {/* Custom scrollbar styles */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #0d1311;
+          border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #6e335f;
+          border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #9987e4;
+        }
+      `}</style>
     </div>
   );
 }
