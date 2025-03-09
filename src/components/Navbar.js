@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { SunIcon, MoonIcon } from "@heroicons/react/24/solid";
+import { Cog6ToothIcon } from "@heroicons/react/24/solid";
 import profilePic from "../assets/pfp.png"; // Update path as needed
 
 const Navbar = () => {
@@ -11,7 +11,9 @@ const Navbar = () => {
   // Check for system theme and stored preference
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme");
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const systemPrefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
 
     if (storedTheme === "dark" || (!storedTheme && systemPrefersDark)) {
       setDarkMode(true);
@@ -37,10 +39,10 @@ const Navbar = () => {
   // Simplified typewriter animation effect
   useEffect(() => {
     const targetText = "Authexity";
-    
+
     const startAnimation = setTimeout(() => {
       let currentIndex = 1; // Start with "A" already showing
-      
+
       const intervalId = setInterval(() => {
         if (currentIndex < targetText.length) {
           setDisplayText(targetText.substring(0, currentIndex + 1));
@@ -49,49 +51,44 @@ const Navbar = () => {
           clearInterval(intervalId);
         }
       }, 150); // Speed of typewriter effect
-      
+
       return () => clearInterval(intervalId);
     }, 500); // Delay before starting animation
-    
+
     return () => clearTimeout(startAnimation);
   }, []);
 
-  const toggleDarkMode = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
+  const refreshPage = () => {
+    window.location.reload();
+  };
 
-    if (newMode) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
+  const openSettings = () => {
+    // Add settings functionality here
+    console.log("Settings clicked");
   };
 
   return (
     <nav
-      className={`fixed top-0 w-full px-6 py-4 flex justify-between items-center shadow-md z-50 transition-all duration-300 ${
+      className={`fixed top-0 w-full px-6 py-4 flex justify-between items-center z-50 transition-all duration-300 ${
         isScrolled
-          ? "backdrop-blur-md bg-[#040906]/60 dark:bg-[#040906]/80"
-          : "bg-[#040906] dark:bg-[#040906]"
+          ? "backdrop-blur-md bg-[#040906]/60 dark:bg-[#040906]/80 shadow-md"
+          : "bg-transparent dark:bg-transparent"
       }`}
     >
-      <h1 className="text-xl font-bold text-[#e6f4eb] dark:text-[#e6f4eb] min-w-[120px]">
+      <h1
+        className="text-xl font-bold text-[#e6f4eb] dark:text-[#e6f4eb] min-w-[120px] cursor-pointer"
+        onClick={refreshPage}
+      >
         {displayText}
       </h1>
 
       <div className="flex items-center gap-4">
-        {/* Theme Toggle Button */}
+        {/* Settings Button */}
         <button
-          onClick={toggleDarkMode}
+          onClick={openSettings}
           className="p-2 rounded-full bg-[#a4d5b3] dark:bg-[#6e335f] shadow-md transition"
         >
-          {darkMode ? (
-            <SunIcon className="h-6 w-6 text-[#e6f4eb]" />
-          ) : (
-            <MoonIcon className="h-6 w-6 text-[#040906]" />
-          )}
+          <Cog6ToothIcon className="h-6 w-6 text-[#040906] dark:text-[#e6f4eb]" />
         </button>
 
         {/* User Profile */}
