@@ -22,10 +22,10 @@ export default function Home() {
 
   const features = [
     { id: "deepfake", name: "Deepfake Spotting", description: "Detect AI-generated deepfake content.", icon: "🎭" },
-    { id: "nudity", name: "Nudity Detection", description: "Detect nudity or inappropriate content.", icon: "🚫" },
+    // { id: "nudity", name: "Nudity Detection", description: "Detect nudity or inappropriate content.", icon: "🚫" },
     { id: "scam", name: "Scam Detection", description: "Identify scam and phishing content.", icon: "⚠️" },
     { id: "factcheck", name: "Fact Checker", description: "Verify facts with web search.", icon: "🔍" },
-    { id: "violence", name: "Violence Detection", description: "Detect violent or graphic content.", icon: "🔪" },
+    // { id: "violence", name: "Violence Detection", description: "Detect violent or graphic content.", icon: "🔪" },
     { id: "qr-content", name: "QR Code Analysis", description: "Extract and analyze QR codes in images.", icon: "📸" },
     { id: "genai", name: "AI-Generated ", description: "Identify AI-generated media.", icon: "🤖" },
     { id: "text-moderation", name: "Text Moderation", description: "Detect harmful or offensive text.", icon: "📜" },
@@ -272,7 +272,7 @@ export default function Home() {
         </div>
 
         {showFeatures && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full mb-6">
             {features.map((feature) => (
               <div
                 key={feature.id}
