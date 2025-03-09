@@ -9,8 +9,36 @@ const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const TAVILY_API_KEY = process.env.NEXT_PUBLIC_TAVILY_API_KEY;
 
 
+const extractJsonFromText = (text) => {
+    try {
+        
+        return JSON.parse(text);
+    } catch (e) {
+        
+        try {
+            
+            const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+            if (jsonMatch && jsonMatch[1]) {
+                return JSON.parse(jsonMatch[1]);
+            }
+            
+            
+            const braceMatch = text.match(/\{[\s\S]*\}/);
+            if (braceMatch) {
+                return JSON.parse(braceMatch[0]);
+            }
+        } catch (innerError) {
+            console.error("Error extracting JSON:", innerError);
+        }
+        
+        
+        throw e;
+    }
+};
+
 export const analyzeScamText = async (message, linkContent) => {
     try {
+        
         const model = new ChatGoogleGenerativeAI({
             apiKey: GOOGLE_API_KEY,
             model: "gemini-2.0-flash-lite",
@@ -40,6 +68,7 @@ export const analyzeScamText = async (message, linkContent) => {
             }
         });
 
+        
         const prompt = `
             You are a spam detection system. Analyze this SMS message and the content of links it contains.
 
@@ -50,11 +79,15 @@ export const analyzeScamText = async (message, linkContent) => {
 
             WEBSITE CONTENT FROM LINKS:
             ${linkContent}
+
+            IMPORTANT: Respond ONLY with a valid JSON object.
         `;
 
+        
         const response = await model.invoke(prompt);
         
-        return JSON.parse(response.content);
+        
+        return extractJsonFromText(response.content);
     } catch (error) {
         console.error("Error analyzing scam text:", error);
         return {
@@ -68,6 +101,7 @@ export const analyzeScamText = async (message, linkContent) => {
 
 export const factCheckStatement = async (statement) => {
     try {
+        
         const model = new ChatGoogleGenerativeAI({
             apiKey: GOOGLE_API_KEY,
             model: "gemini-2.0-flash-lite",
@@ -115,6 +149,7 @@ export const factCheckStatement = async (statement) => {
             }
         });
 
+        
         let retriever = null;
         if (TAVILY_API_KEY) {
             retriever = new TavilySearchAPIRetriever({
@@ -123,6 +158,7 @@ export const factCheckStatement = async (statement) => {
             });
         }
 
+        
         if (!retriever) {
             const prompt = `
                 Fact check the following statement and provide an analysis:
@@ -130,16 +166,20 @@ export const factCheckStatement = async (statement) => {
                 Statement: "${statement}"
                 
                 For visualContent, create a simple HTML visualization that represents your fact check.
+                
+                IMPORTANT: Respond ONLY with a valid JSON object.
             `;
 
             const response = await model.invoke(prompt);
-            return JSON.parse(response.content);
+            return extractJsonFromText(response.content);
         }
 
-      
+        
+        
         const docs = await retriever.invoke(statement);
         const context = formatDocumentsAsString(docs);
 
+        
         const prompt = `
             You are an expert fact checker. Your task is to verify the following statement using the provided search results.
             
@@ -152,14 +192,18 @@ export const factCheckStatement = async (statement) => {
             
             For visualContent, create a simple HTML visualization that represents your fact check.
             Use appropriate colors, formatting, and layout to make the information clear and visually appealing.
+            
+            IMPORTANT: Respond ONLY with a valid JSON object.
         `;
 
-
+        
         const response = await model.invoke(prompt);
         
-        return JSON.parse(response.content);
+        
+        return extractJsonFromText(response.content);
     } catch (error) {
         console.error("Error fact checking statement:", error);
+        
         
         return {
             factAccuracy: 0,
