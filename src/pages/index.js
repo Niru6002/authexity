@@ -37,25 +37,11 @@ export default function Home() {
     // Extract links from the text
     const links = extractLinks(inputText);
     let linkContent = "";
-    let scrapedLinks = [];
   
     // Scrape content from each link
     for (let link of links) {
-      const scrapedData = await scrapeWebsiteContent(link);
-      
-      // Add structured data to the array
-      scrapedLinks.push(scrapedData);
-      
-      // Also prepare text content for analysis
-      linkContent += `\n[${link}]: ${scrapedData.textContent}`;
-      
-      // Add metadata for analysis
-      if (scrapedData.title) {
-        linkContent += `\nTitle: ${scrapedData.title}`;
-      }
-      if (scrapedData.description) {
-        linkContent += `\nDescription: ${scrapedData.description}`;
-      }
+      const content = await scrapeWebsiteContent(link);
+      linkContent += `\n[${link}]: ${content}`;
     }
   
     // Analyze the text and link content with Gemini
@@ -66,8 +52,7 @@ export default function Home() {
       text: inputText,
       type: "text",
       timestamp: new Date().toISOString(),
-      analysis: analysisResponse,
-      links: scrapedLinks // Include the rich link data
+      analysis: analysisResponse
     };
   
     setChatMessages([...chatMessages, newMessage]);
@@ -385,83 +370,6 @@ export default function Home() {
                     dangerouslySetInnerHTML={{ __html: msg.factCheck.visualContent }}
                   />
                 )}
-                
-                {/* Citations with confidence scores */}
-                {msg.factCheck?.citations && msg.factCheck.citations.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm uppercase text-gray-400 mb-2">Sources</h4>
-                    <div className="space-y-2">
-                      {msg.factCheck.citations.map((citation, idx) => (
-                        <div key={idx} className="p-2 bg-gray-700 rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <a 
-                              href={citation.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:text-blue-300 text-sm"
-                            >
-                              {citation.title || citation.url}
-                            </a>
-                            {citation.confidence !== undefined && (
-                              <span className={`px-2 py-0.5 text-xs rounded-full ${
-                                citation.confidence > 0.7 ? 'bg-green-600' : 
-                                citation.confidence > 0.4 ? 'bg-yellow-600' : 'bg-red-600'
-                              }`}>
-                                {(citation.confidence * 100).toFixed(0)}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Grounding Metadata with Images */}
-                {msg.factCheck?.groundingMetadata?.groundingChunks && 
-                 msg.factCheck.groundingMetadata.groundingChunks.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm uppercase text-gray-400 mb-2">Grounding Sources</h4>
-                    <div className="space-y-2">
-                      {msg.factCheck.groundingMetadata.groundingChunks.map((chunk, idx) => {
-                        // Check if chunk has an image
-                        const hasImage = chunk.web?.imageUrl || chunk.web?.thumbnailUrl;
-                        
-                        return (
-                          <div key={idx} className="p-2 bg-gray-700 rounded-lg">
-                            {hasImage && (
-                              <div className="mb-2">
-                                <img 
-                                  src={chunk.web?.imageUrl || chunk.web?.thumbnailUrl} 
-                                  alt={chunk.web?.title || "Source image"} 
-                                  className="w-full max-h-32 object-contain rounded-md"
-                                />
-                              </div>
-                            )}
-                            <div className="flex justify-between items-center">
-                              <a 
-                                href={chunk.web?.uri} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-400 hover:text-blue-300 text-sm"
-                              >
-                                {chunk.web?.title || chunk.web?.uri || "Source"}
-                              </a>
-                              {chunk.confidence !== undefined && (
-                                <span className={`px-2 py-0.5 text-xs rounded-full ${
-                                  chunk.confidence > 0.7 ? 'bg-green-600' : 
-                                  chunk.confidence > 0.4 ? 'bg-yellow-600' : 'bg-red-600'
-                                }`}>
-                                  {(chunk.confidence * 100).toFixed(0)}%
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="flex-1">
@@ -499,96 +407,6 @@ export default function Home() {
                         </ul>
                       </div>
                     )}
-                  </div>
-                )}
-                
-                {/* Display rich content from links */}
-                {msg.links && msg.links.length > 0 && (
-                  <div className="mt-4">
-                    <h3 className="text-lg font-semibold mb-2 text-[#9987e4]">Linked Content</h3>
-                    <div className="space-y-4">
-                      {msg.links.map((link, i) => (
-                        <div key={i} className="border border-[#6e335f]/30 rounded-lg overflow-hidden bg-[#040906]/90">
-                          {/* Link header with favicon and URL */}
-                          <div className="flex items-center p-3 bg-[#0a0f0c] border-b border-[#6e335f]/30">
-                            {link.metadata?.favicon && (
-                              <img 
-                                src={link.metadata.favicon} 
-                                alt="Site icon" 
-                                className="w-4 h-4 mr-2"
-                                onError={(e) => e.target.style.display = 'none'} 
-                              />
-                            )}
-                            <a 
-                              href={link.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="text-[#b27358] text-sm truncate hover:underline"
-                            >
-                              {link.url}
-                            </a>
-                          </div>
-                          
-                          <div className="p-4">
-                            {/* Title and description */}
-                            {link.title && (
-                              <h4 className="text-lg font-semibold mb-1">{link.title}</h4>
-                            )}
-                            {link.description && (
-                              <p className="text-sm text-gray-300 mb-3">{link.description}</p>
-                            )}
-                            
-                            {/* Display main image if available */}
-                            {(link.metadata?.ogImage || (link.images && link.images.length > 0)) && (
-                              <div className="mb-3">
-                                <img 
-                                  src={link.metadata?.ogImage || link.images[0].url} 
-                                  alt={link.images?.[0]?.alt || "Website preview"} 
-                                  className="w-full h-auto max-h-48 object-cover rounded-md"
-                                  onError={(e) => e.target.style.display = 'none'} 
-                                />
-                              </div>
-                            )}
-                            
-                            {/* Additional metadata */}
-                            <div className="text-xs text-gray-400 flex flex-wrap gap-3">
-                              {link.metadata?.author && (
-                                <span>Author: {link.metadata.author}</span>
-                              )}
-                              {link.metadata?.publishedDate && (
-                                <span>Published: {new Date(link.metadata.publishedDate).toLocaleDateString()}</span>
-                              )}
-                              {link.metadata?.ogType && (
-                                <span>Type: {link.metadata.ogType}</span>
-                              )}
-                            </div>
-                            
-                            {/* Image gallery (if multiple images) */}
-                            {link.images && link.images.length > 1 && (
-                              <div className="mt-3">
-                                <h5 className="text-sm font-semibold mb-2 text-gray-300">Images</h5>
-                                <div className="flex flex-wrap gap-2">
-                                  {link.images.slice(0, 4).map((img, imgIndex) => (
-                                    <img 
-                                      key={imgIndex} 
-                                      src={img.url} 
-                                      alt={img.alt || `Image ${imgIndex + 1}`} 
-                                      className="w-16 h-16 object-cover rounded-md"
-                                      onError={(e) => e.target.style.display = 'none'} 
-                                    />
-                                  ))}
-                                  {link.images.length > 4 && (
-                                    <div className="w-16 h-16 bg-[#0a0f0c] rounded-md flex items-center justify-center text-gray-400">
-                                      +{link.images.length - 4}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 )}
               </div>
