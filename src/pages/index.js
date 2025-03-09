@@ -260,7 +260,7 @@ export default function Home() {
         }}
       />
 
-      <div className="w-full max-w-4xl px-6 flex flex-col items-center relative z-10">
+      <div className="w-full  px-6 flex flex-col items-center relative z-10">
         <div className="text-center mb-6 mt-6">
           <div className="text-4xl font-bold flex items-center justify-center space-x-2">
             <span className="text-[#9987e4]"></span>
