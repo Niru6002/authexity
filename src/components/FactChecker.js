@@ -1,42 +1,9 @@
 import { ArrowUpIcon } from "@heroicons/react/24/solid";
-import React, { useEffect } from "react";
+import React from "react";
 
-const FactChecker = ({ onSubmit, isLoading, initialStatement, readOnly = false, showResults = true, results: externalResults = null }) => {
+  const FactChecker = ({ onSubmit, isLoading, initialStatement, readOnly = false, showResults = true }) => {
   const [statement, setStatement] = React.useState(initialStatement || "");
-  const [results, setResults] = React.useState(externalResults);
-  const [enhancedChunks, setEnhancedChunks] = React.useState([]);
-
-  useEffect(() => {
-    if (externalResults) {
-      setResults(externalResults);
-    }
-  }, [externalResults]);
-
-  useEffect(() => {
-    if (results?.groundingMetadata?.groundingChunks) {
-      const processChunks = async () => {
-        const enhanced = await Promise.all(
-          results.groundingMetadata.groundingChunks.map(async (chunk) => {
-            const enhancedChunk = { ...chunk };
-            
-            // Extract real URL and domain
-            const realUrl = await extractRealUrl(chunk);
-            if (realUrl) {
-              enhancedChunk.realUrl = realUrl;
-              enhancedChunk.domain = extractDomain(realUrl);
-              enhancedChunk.faviconUrl = getFaviconUrl(enhancedChunk.domain);
-            }
-            
-            return enhancedChunk;
-          })
-        );
-        
-        setEnhancedChunks(enhanced);
-      };
-      
-      processChunks();
-    }
-  }, [results]);
+  const [results, setResults] = React.useState(null);
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -55,12 +22,66 @@ const FactChecker = ({ onSubmit, isLoading, initialStatement, readOnly = false, 
     try {
       if (!url) return null;
       
+      // If it's a Vertex AI search URL, try to extract the real URL
+      if (url.includes('vertexaisearch.cloud.google.com')) {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const redirectUrl = urlParams.get('url') || urlParams.get('redirect') || urlParams.get('q');
+        if (redirectUrl) {
+          try {
+            const extractedUrl = new URL(redirectUrl);
+            return extractedUrl.hostname.startsWith('www.') 
+              ? extractedUrl.hostname.substring(4) 
+              : extractedUrl.hostname;
+          } catch (e) {
+            console.log("Invalid redirect URL:", redirectUrl);
+          }
+        }
+      }
+      
+      // For regular URLs
       const domain = new URL(url).hostname;
       return domain.startsWith('www.') ? domain.substring(4) : domain;
     } catch (e) {
-      console.log("Error extracting domain:", e);
       return null;
     }
+  };
+
+  // Get real URL from Vertex AI search URL
+  const getRealUrl = (chunk) => {
+    if (!chunk.web?.uri) return null;
+    
+    const url = chunk.web.uri;
+    if (url.includes('vertexaisearch.cloud.google.com')) {
+      const urlParams = new URLSearchParams(url.split('?')[1]);
+      const redirectUrl = urlParams.get('url') || urlParams.get('redirect') || urlParams.get('q');
+      if (redirectUrl) {
+        try {
+          new URL(redirectUrl); // Validate URL
+          return redirectUrl;
+        } catch (e) {
+          console.log("Invalid redirect URL:", redirectUrl);
+        }
+      }
+      
+      // If no valid redirect URL found, try to infer from title
+      if (chunk.web?.title) {
+        if (chunk.web.title.includes("Tribune") || chunk.web.title.toLowerCase().includes("tribune.com")) {
+          return "https://tribune.com.pk";
+        } else if (chunk.web.title.includes("CNN") || chunk.web.title.toLowerCase().includes("cnn.com")) {
+          return "https://cnn.com";
+        } else if (chunk.web.title.includes("BBC") || chunk.web.title.toLowerCase().includes("bbc.com")) {
+          return "https://bbc.com";
+        } else if (chunk.web.title.includes("New York Times") || chunk.web.title.toLowerCase().includes("nytimes.com")) {
+          return "https://nytimes.com";
+        } else if (chunk.web.title.includes("Washington Post") || chunk.web.title.toLowerCase().includes("washingtonpost.com")) {
+          return "https://washingtonpost.com";
+        } else if (chunk.web.title.includes("Reuters") || chunk.web.title.toLowerCase().includes("reuters.com")) {
+          return "https://reuters.com";
+        }
+      }
+    }
+    
+    return url;
   };
 
   // Get favicon URL
@@ -69,77 +90,11 @@ const FactChecker = ({ onSubmit, isLoading, initialStatement, readOnly = false, 
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
   };
 
-  // Extract real URL from Vertex AI search URL
-  const extractRealUrl = async (chunk) => {
-    if (!chunk.web?.uri) return null;
-    
-    const url = chunk.web.uri;
-    
-    // If it's a Vertex AI search URL, try to extract the real URL
-    if (url.includes('vertexaisearch.cloud.google.com')) {
-      try {
-        // Try to extract from URL parameters
-        const urlParams = new URLSearchParams(url.split('?')[1]);
-        const redirectUrl = urlParams.get('url') || urlParams.get('redirect') || urlParams.get('q');
-        
-        if (redirectUrl && redirectUrl.startsWith('http')) {
-          return redirectUrl;
-        }
-        
-        // Try to extract from title
-        if (chunk.web?.title) {
-          // Extract domain from title if it looks like a URL
-          const urlMatch = chunk.web.title.match(/\b(https?:\/\/[^\s]+)\b/);
-          if (urlMatch) return urlMatch[1];
-          
-          // Extract domain from title if it contains a domain
-          const domainMatch = chunk.web.title.match(/\b([a-zA-Z0-9-]+\.(com|org|net|gov|edu|co|io|info))\b/i);
-          if (domainMatch) return `https://${domainMatch[0]}`;
-          
-          // Try to infer from common news sources
-          if (chunk.web.title.includes("Tribune") || chunk.web.title.toLowerCase().includes("tribune")) {
-            return "https://tribune.com.pk";
-          } else if (chunk.web.title.includes("CNN") || chunk.web.title.toLowerCase().includes("cnn")) {
-            return "https://cnn.com";
-          } else if (chunk.web.title.includes("BBC") || chunk.web.title.toLowerCase().includes("bbc")) {
-            return "https://bbc.com";
-          } else if (chunk.web.title.includes("New York Times") || chunk.web.title.toLowerCase().includes("nytimes")) {
-            return "https://nytimes.com";
-          } else if (chunk.web.title.includes("Washington Post") || chunk.web.title.toLowerCase().includes("washingtonpost")) {
-            return "https://washingtonpost.com";
-          } else if (chunk.web.title.includes("Reuters") || chunk.web.title.toLowerCase().includes("reuters")) {
-            return "https://reuters.com";
-          }
-        }
-        
-        // Try to extract from snippet
-        if (chunk.web?.snippet) {
-          const urlMatch = chunk.web.snippet.match(/\b(https?:\/\/[^\s]+)\b/);
-          if (urlMatch) return urlMatch[1];
-          
-          const domainMatch = chunk.web.snippet.match(/\b([a-zA-Z0-9-]+\.(com|org|net|gov|edu|co|io|info))\b/i);
-          if (domainMatch) return `https://${domainMatch[0]}`;
-        }
-        
-        // If all else fails, try to fetch the redirect URL
-        try {
-          const response = await fetch(url, { method: 'HEAD', redirect: 'manual' });
-          const location = response.headers.get('location');
-          if (location && location.startsWith('http')) {
-            return location;
-          }
-        } catch (e) {
-          console.log("Error fetching redirect:", e);
-        }
-      } catch (e) {
-        console.log("Error extracting real URL:", e);
-      }
-    }
-    
-    return url;
-  };
-
   const renderCitation = (chunk) => {
+    const realUrl = getRealUrl(chunk);
+    const domain = realUrl ? extractDomain(realUrl) : null;
+    const faviconUrl = domain ? getFaviconUrl(domain) : null;
+
     return (
       <div key={chunk.web?.uri} className="p-4 bg-[#0d1117] rounded-lg border border-[#9987e4]/20 mb-4 hover:border-[#9987e4]/50 transition-all">
         <div className="flex items-start gap-4">
@@ -155,17 +110,17 @@ const FactChecker = ({ onSubmit, isLoading, initialStatement, readOnly = false, 
           )}
           <div className="flex-grow">
             <div className="flex items-center gap-2 mb-2">
-              {chunk.faviconUrl && (
+              {faviconUrl && (
                 <img 
-                  src={chunk.faviconUrl} 
-                  alt={chunk.domain || "Source"} 
+                  src={faviconUrl} 
+                  alt={domain || "Source"} 
                   className="w-4 h-4 rounded-sm"
                   onError={(e) => e.target.style.display = 'none'}
                 />
               )}
-              {chunk.domain && (
+              {domain && (
                 <span className="px-2 py-1 bg-[#1f2937] rounded-md text-xs text-[#e6f4eb]/70">
-                  {chunk.domain}
+                  {domain}
                 </span>
               )}
               {chunk.publishDate && (
@@ -175,9 +130,9 @@ const FactChecker = ({ onSubmit, isLoading, initialStatement, readOnly = false, 
               )}
             </div>
             <h3 className="text-[#e6f4eb] font-medium mb-2">
-              {chunk.realUrl ? (
+              {realUrl ? (
                 <a 
-                  href={chunk.realUrl}
+                  href={realUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-[#9987e4] transition-colors"
@@ -191,9 +146,9 @@ const FactChecker = ({ onSubmit, isLoading, initialStatement, readOnly = false, 
             <p className="text-[#e6f4eb]/70 text-sm">
               {chunk.web?.snippet || "No snippet available"}
             </p>
-            {chunk.realUrl && (
+            {realUrl && (
               <a 
-                href={chunk.realUrl}
+                href={realUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block mt-2 text-[#9987e4] hover:text-[#b4a7f8] text-sm"
@@ -263,11 +218,11 @@ const FactChecker = ({ onSubmit, isLoading, initialStatement, readOnly = false, 
           </div>
 
           <div className="flex flex-col lg:flex-row gap-4 mt-6">
-            {enhancedChunks.length > 0 && (
+            {results.groundingMetadata?.groundingChunks?.length > 0 && (
               <div className="lg:w-1/2">
                 <h3 className="text-lg font-medium text-[#e6f4eb] mb-4">Sources</h3>
                 <div className="space-y-4 overflow-y-auto max-h-[600px] pr-2">
-                  {enhancedChunks.map(renderCitation)}
+                  {results.groundingMetadata.groundingChunks.map(renderCitation)}
                 </div>
               </div>
             )}
