@@ -6,7 +6,8 @@ import {
 } from "@heroicons/react/24/solid";
 import axios from "axios";
 import { extractLinks, scrapeWebsiteContent } from "../utils/linkscrapper";
-import { analyzeScamText } from "../utils/gemini";
+import { analyzeScamText, factCheckStatement } from "../utils/gemini";
+import FactChecker from "../components/FactChecker";
 
 export default function Home() {
   const [attachments, setAttachments] = useState([]);
@@ -14,17 +15,19 @@ export default function Home() {
   const [chatMessages, setChatMessages] = useState([]);
   const [showFeatures, setShowFeatures] = useState(true);
   const [inputText, setInputText] = useState('');
+  const [isFactChecking, setIsFactChecking] = useState(false);
+  const [factCheckResults, setFactCheckResults] = useState(null);
 
 
   const features = [
     { id: "deepfake", name: "Deepfake Detection", description: "Detect AI-generated deepfake content.", icon: "🎭" },
     { id: "nudity", name: "Nudity Detection", description: "Detect nudity or inappropriate content.", icon: "🚫" },
     { id: "scam", name: "Scam Detection", description: "Identify scam and phishing content.", icon: "⚠️" },
+    { id: "factcheck", name: "Fact Checker", description: "Verify facts with web search.", icon: "🔍" },
     { id: "violence", name: "Violence Detection", description: "Detect violent or graphic content.", icon: "🔪" },
     { id: "qr-content", name: "QR Code Analysis", description: "Extract and analyze QR codes in images.", icon: "📸" },
     { id: "genai", name: "AI-Generated Content", description: "Identify AI-generated media.", icon: "🤖" },
     { id: "text-moderation", name: "Text Moderation", description: "Detect harmful or offensive text.", icon: "📜" },
-    { id: "face-analysis", name: "Face Analysis", description: "Analyze faces for various attributes.", icon: "👤" },
   ];
 
   const processTextAnalysis = async () => {
@@ -43,28 +46,45 @@ export default function Home() {
     // Analyze the text and link content with Gemini
     const analysisResponse = await analyzeScamText(inputText, linkContent);
   
-    try {
-      // Extract text content safely
-      let rawText = analysisResponse.candidates[0]?.content?.parts[0]?.text || "{}";
+    // Add the analysis to the chat
+    const newMessage = {
+      text: inputText,
+      type: "text",
+      timestamp: new Date().toISOString(),
+      analysis: analysisResponse
+    };
   
-      // Remove possible Markdown backticks and language specifier
-      rawText = rawText.trim().replace(/```json/g, "").replace(/```/g, "").trim();
-  
-      // Parse cleaned JSON
-      const analysis = JSON.parse(rawText);
-  
-      // Add response to chat
-      setChatMessages((prev) => [
-        ...prev,
-        { type: "scam-analysis", content: inputText, analysis },
-      ]);
-    } catch (error) {
-      console.error("Error parsing Gemini response:", error, "Raw response:", analysisResponse);
-    }
-  
-    setInputText(""); // Clear input
+    setChatMessages([...chatMessages, newMessage]);
+    setInputText("");
   };
-  
+
+  const processFactCheck = async (statement) => {
+    if (!statement.trim()) return;
+    
+    setIsFactChecking(true);
+    
+    try {
+      // Perform fact checking
+      const results = await factCheckStatement(statement);
+      
+      // Set the results
+      setFactCheckResults(results);
+      
+      // Add to chat messages
+      const newMessage = {
+        text: statement,
+        type: "factcheck",
+        timestamp: new Date().toISOString(),
+        factCheck: results
+      };
+      
+      setChatMessages([...chatMessages, newMessage]);
+    } catch (error) {
+      console.error("Error during fact checking:", error);
+    } finally {
+      setIsFactChecking(false);
+    }
+  };
 
   const handleFileUpload = (event) => {
     const files = Array.from(event.target.files);
@@ -76,57 +96,50 @@ export default function Home() {
   };
 
   const toggleFeature = (id) => {
-    setSelectedFeatures((prev) =>
-      prev.includes(id) ? prev.filter((feature) => feature !== id) : [...prev, id]
+    setSelectedFeatures(prev => 
+      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
     );
   };
 
   const processImages = async () => {
-    if (attachments.length === 0 && !selectedFeatures.includes("scam")) return;
-    setShowFeatures(false);
+    if (attachments.length === 0) return;
 
-    // If Scam Detection is selected, run processTextAnalysis
-    if (selectedFeatures.includes("scam")) {
-      await processTextAnalysis();
-      return;
-    }
+    // Simulate image processing
+    const newMessages = await Promise.all(attachments.map(async (file) => {
+      // This is a placeholder for actual image processing
+      // In a real app, you would send the image to your API
+      const mockResults = {
+        nudity: { safe: Math.random() },
+        type: { deepfake: Math.random() },
+        qr: { link: Math.random() > 0.5 ? [{ match: "https://example.com" }] : [] }
+      };
 
-    const newMessages = [];
+      return {
+        image: URL.createObjectURL(file),
+        type: "image",
+        timestamp: new Date().toISOString(),
+        results: mockResults
+      };
+    }));
 
-    for (let file of attachments) {
-      const formData = new FormData();
-      formData.append("media", file);
-      formData.append("models", selectedFeatures.join(","));
-      formData.append("api_user", process.env.NEXT_PUBLIC_API_USER);
-      formData.append("api_secret", process.env.NEXT_PUBLIC_API_SECRET);
-
-      try {
-        const response = await axios.post("https://api.sightengine.com/1.0/check.json", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-
-        const result = response.data;
-        newMessages.push({
-          image: URL.createObjectURL(file),
-          results: result,
-        });
-      } catch (error) {
-        console.error("Error processing image", error);
-      }
-    }
     setChatMessages([...chatMessages, ...newMessages]);
     setAttachments([]);
-    setSelectedFeatures([]);
   };
-
 
   const handleTextSubmit = async (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
   
-    // If Scam Detection is selected, analyze the text instead of just displaying it
+    // If Scam Detection is selected, analyze the text
     if (selectedFeatures.includes("scam")) {
       await processTextAnalysis();
+      return;
+    }
+    
+    // If Fact Checker is selected, perform fact checking
+    if (selectedFeatures.includes("factcheck")) {
+      await processFactCheck(inputText);
+      setInputText("");
       return;
     }
   
@@ -169,46 +182,60 @@ export default function Home() {
         </div>
       )}
 
-      <div className="fixed bottom-10 w-full max-w-2xl p-4">
-        {attachments.length > 0 && (
-          <div className="flex gap-2 mb-2">
-            {attachments.map((file, index) => (
-              <div key={index} className="relative w-16 h-16 bg-gray-700 flex items-center justify-center rounded-md">
-                <img src={URL.createObjectURL(file)} alt="attachment" className="w-full h-full object-cover rounded-md" />
-                <XCircleIcon className="absolute -top-2 -right-2 h-5 w-5 text-red-500 cursor-pointer" onClick={() => removeAttachment(index)} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="relative flex items-center p-4 rounded-xl shadow-lg border border-gray-700 bg-gray-800">
-          <input 
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            className="flex-grow bg-transparent outline-none text-white placeholder:text-gray-400"
-            placeholder="Type your message here..."
+      {/* Show Fact Checker UI when factcheck feature is selected */}
+      {selectedFeatures.includes("factcheck") && (
+        <div className="w-full max-w-4xl mb-10">
+          <FactChecker 
+            onSubmit={processFactCheck} 
+            isLoading={isFactChecking} 
+            results={factCheckResults} 
           />
-          <input type="file" multiple className="hidden" id="fileUpload" onChange={handleFileUpload} />
-          <div className="flex items-center">
-            <label htmlFor="fileUpload" className="p-2 text-gray-400 hover:text-blue-500 cursor-pointer">
-              <PaperClipIcon className="h-6 w-6" />
-            </label>
-            <button 
-              className="p-2 text-gray-400 hover:text-green-500" 
-              onClick={inputText.trim() ? handleTextSubmit : processImages}
-            >
-              <ArrowUpIcon className="h-6 w-6" />
-            </button>
+        </div>
+      )}
+
+      {/* Only show the input box if factcheck is not selected */}
+      {!selectedFeatures.includes("factcheck") && (
+        <div className="fixed bottom-10 w-full max-w-2xl p-4">
+          {attachments.length > 0 && (
+            <div className="flex gap-2 mb-2">
+              {attachments.map((file, index) => (
+                <div key={index} className="relative w-16 h-16 bg-gray-700 flex items-center justify-center rounded-md">
+                  <img src={URL.createObjectURL(file)} alt="attachment" className="w-full h-full object-cover rounded-md" />
+                  <XCircleIcon className="absolute -top-2 -right-2 h-5 w-5 text-red-500 cursor-pointer" onClick={() => removeAttachment(index)} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="relative flex items-center p-4 rounded-xl shadow-lg border border-gray-700 bg-gray-800">
+            <input 
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              className="flex-grow bg-transparent outline-none text-white placeholder:text-gray-400"
+              placeholder="Type your message here..."
+            />
+            <input type="file" multiple className="hidden" id="fileUpload" onChange={handleFileUpload} />
+            <div className="flex items-center">
+              <label htmlFor="fileUpload" className="p-2 text-gray-400 hover:text-blue-500 cursor-pointer">
+                <PaperClipIcon className="h-6 w-6" />
+              </label>
+              <button 
+                className="p-2 text-gray-400 hover:text-green-500" 
+                onClick={inputText.trim() ? handleTextSubmit : processImages}
+              >
+                <ArrowUpIcon className="h-6 w-6" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Display chat messages with formatted results */}
       <div className="w-full max-w-2xl mt-10">
         {chatMessages.map((msg, index) => (
           <div key={index} className="bg-gray-800 p-6 rounded-lg shadow-md mt-4 flex items-start gap-6">
-            {msg.image ? (
+            {msg.type === "image" ? (
               <>
                 <img src={msg.image} alt="Analyzed" className="w-24 h-24 rounded-md object-cover" />
                 <div className="flex-1">
@@ -243,9 +270,80 @@ export default function Home() {
                   )}
                 </div>
               </>
+            ) : msg.type === "factcheck" ? (
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold mb-2">Fact Check Result</h3>
+                <p className="text-lg mb-3">{msg.text}</p>
+                
+                {msg.factCheck?.factAccuracy !== undefined && (
+                  <div className="mb-3">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-gray-300">Accuracy Score</span>
+                      <span className="font-bold">{msg.factCheck.factAccuracy}%</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full ${
+                          msg.factCheck.factAccuracy > 80 ? 'bg-green-500' : 
+                          msg.factCheck.factAccuracy > 50 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${msg.factCheck.factAccuracy}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+                
+                {msg.factCheck?.verifiedStatement && (
+                  <div className="mb-3 p-3 bg-gray-700 rounded-lg">
+                    <p className="text-white">{msg.factCheck.verifiedStatement}</p>
+                  </div>
+                )}
+                
+                {msg.factCheck?.visualContent && (
+                  <div 
+                    className="mt-3"
+                    dangerouslySetInnerHTML={{ __html: msg.factCheck.visualContent }}
+                  />
+                )}
+              </div>
             ) : (
               <div className="flex-1">
                 <span className="text-lg">{msg.text}</span>
+                
+                {msg.analysis && (
+                  <div className="mt-3 p-4 bg-gray-700 rounded-lg">
+                    <div className="mb-2">
+                      <span className="font-semibold text-blue-400">Spam Score:</span>{" "}
+                      <span className={`px-2 py-1 text-sm rounded-md ${
+                        msg.analysis.spamScore < 30 ? "bg-green-500" : 
+                        msg.analysis.spamScore < 70 ? "bg-yellow-500" : "bg-red-500"
+                      }`}>
+                        {msg.analysis.spamScore}%
+                      </span>
+                    </div>
+                    
+                    <div className="mb-2">
+                      <span className="font-semibold text-blue-400">Danger Score:</span>{" "}
+                      <span className={`px-2 py-1 text-sm rounded-md ${
+                        msg.analysis.dangerScore < 30 ? "bg-green-500" : 
+                        msg.analysis.dangerScore < 70 ? "bg-yellow-500" : "bg-red-500"
+                      }`}>
+                        {msg.analysis.dangerScore}%
+                      </span>
+                    </div>
+                    
+                    {msg.analysis.warnings && msg.analysis.warnings.length > 0 && (
+                      <div>
+                        <span className="font-semibold text-blue-400">Warnings:</span>
+                        <ul className="list-disc list-inside mt-1">
+                          {msg.analysis.warnings.map((warning, i) => (
+                            <li key={i} className="text-yellow-300">{warning}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
