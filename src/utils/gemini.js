@@ -112,14 +112,6 @@ export const factCheckStatement = async (statement) => {
         const factCheckSchema = z.object({
             factAccuracy: z.number().describe("Score between 0-100 indicating statement accuracy"),
             verifiedStatement: z.string().describe("The verified or corrected statement"),
-            citations: z.array(
-                z.object({
-                    title: z.string().describe("Source title"),
-                    url: z.string().describe("Source URL"),
-                    snippet: z.string().describe("Relevant text from source"),
-                    confidence: z.number().optional().describe("Confidence score for this source")
-                })
-            ).describe("List of citations supporting the fact check"),
             visualContent: z.string().describe("Give me a dark themed minimalistic visual representation of the fact check by generating html, go as creative as you can and give me visual elements that protrys it. give me boxes and stuff that protrays that this is ui and not just a text. Use multiple colors containers etc, make it as viusally appealing as possible ")
         });
 
@@ -297,7 +289,6 @@ export const factCheckStatement = async (statement) => {
         return {
             factAccuracy: 0,
             verifiedStatement: "Failed to fact-check the statement",
-            citations: [],
             visualContent: `<div class="error">Error: ${error.message}</div>`,
             error: error.message
         };
