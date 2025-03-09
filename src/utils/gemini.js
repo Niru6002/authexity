@@ -120,7 +120,7 @@ export const factCheckStatement = async (statement) => {
                     confidence: z.number().optional().describe("Confidence score for this source")
                 })
             ).describe("List of citations supporting the fact check"),
-            visualContent: z.string().describe("Give me a dark themed minimalistic visual representation of the fact check by generating html, go as creative as you can and give me visual elements that protrys it. give me boxes and stuff that protrays that this is ui and not just a text. Use multiple colors containers etc, make it as viusally appealing as possible  ")
+            visualContent: z.string().describe("HTML representation of the fact check")
         });
 
         
@@ -158,52 +158,12 @@ export const factCheckStatement = async (statement) => {
         const groundingChunks = groundingMetadata.groundingChunks || [];
         
         
-        const processedChunks = groundingChunks.map(chunk => {
-            const url = chunk.web?.uri || "";
-            let domain = "";
-            try {
-                if (url.includes('vertexaisearch.cloud.google.com')) {
-                    const title = chunk.web?.title || "";
-                    const domainMatch = title.match(/^([a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)/);
-                    if (domainMatch) {
-                        domain = domainMatch[1];
-                    }
-                } else {
-                    domain = new URL(url).hostname;
-                }
-            } catch (e) {
-                console.log("Invalid URL:", url);
-            }
-            
-            let cleanTitle = chunk.web?.title || "";
-            if (cleanTitle.includes(" - ")) {
-                cleanTitle = cleanTitle.split(" - ").slice(1).join(" - ");
-            } else if (cleanTitle.includes(" | ")) {
-                cleanTitle = cleanTitle.split(" | ").slice(1).join(" | ");
-            }
-            
-            const imageUrl = chunk.web?.imageUrl || chunk.web?.thumbnailUrl || "";
-            
-            const publishDate = chunk.web?.publishDate || "";
-            
+        const extractedCitations = groundingChunks.map(chunk => {
             return {
-                ...chunk,
-                domain,
-                cleanTitle,
-                imageUrl,
-                publishDate
-            };
-        });
-        
-        const extractedCitations = processedChunks.map(chunk => {
-            return {
-                title: chunk.cleanTitle || chunk.web?.title || "Unknown Source",
+                title: chunk.web?.title || "Unknown Source",
                 url: chunk.web?.uri || "#",
                 snippet: chunk.web?.snippet || "No snippet available",
-                confidence: chunk.confidence || 0.0,
-                domain: chunk.domain,
-                imageUrl: chunk.imageUrl,
-                publishDate: chunk.publishDate
+                confidence: chunk.confidence || 0.0
             };
         });
         
